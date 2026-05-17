@@ -25,6 +25,13 @@ public:
 	void DrawTreeTrunk();
 	void DrawTreeCone();
 
+	void InitSnowman();
+	void CleanupSnowman();
+	void DrawSnowSphere();
+	void DrawHatBrim();
+	void DrawHatCrown();
+	void DrawCarrotNose();
+
 private:
 	CCamera* pCamera;
 	CGridAxis* pGridAxis;
@@ -37,4 +44,8 @@ private:
 
 	CPrimitives treeTrunk;
 	CPrimitives treeCone;
+	CPrimitives snowSphere;
+	CPrimitives hatBrim;
+	CPrimitives hatCrown;
+	CPrimitives carrotNose;
 };

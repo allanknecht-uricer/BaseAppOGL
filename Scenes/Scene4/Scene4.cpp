@@ -1,4 +1,5 @@
 #include "Scene4.h"
+#include <cmath>
 
 Scene4::Scene4()
 {
@@ -21,11 +22,13 @@ Scene4::Scene4()
 	pGridAxis = new CGridAxis(50.0f);
 	CreateFloor();
 	InitTree();
+	InitSnowman();
 }
 
 Scene4::~Scene4()
 {
 	CleanupTree();
+	CleanupSnowman();
 	DestroyFloor();
 	if (pCamera)
 	{
@@ -208,6 +211,79 @@ void Scene4::DrawScene()
 		DrawTreeCone();
 	}
 
+	// boneco
+	{
+		const float r0 = 0.2f;
+		const float r1 = 0.13f;
+		const float r2 = 0.08f;
+
+		const glm::vec3 posChao(-2.0f, 0.0f, 3.0f);
+		const float yCorpo = r0;
+		const float yMeio = 1.77f * r0 + r1;
+		const float yCabeca = 1.77f * r0 + 1.77f * r1 + r2;
+		const glm::vec3 pivotCorpo(posChao.x, yCorpo, posChao.z);
+
+		float t = pTimer->GetTime() / 1000.0f;
+		float balanco = sinf(t * 4.0f) * glm::radians(14.0f);
+
+		// gira em torno do centro da bola de baixo; as 3 esferas usam o mesmo balanço
+		glm::mat4 balancoMat = glm::translate(glm::mat4(1.0f), pivotCorpo);
+		balancoMat = glm::rotate(balancoMat, balanco, glm::vec3(0.0f, 0.0f, 1.0f));
+		balancoMat = glm::translate(balancoMat, -pivotCorpo);
+
+		glm::mat4 corpo = balancoMat * glm::translate(glm::mat4(1.0f), glm::vec3(posChao.x, yCorpo, posChao.z))
+			* glm::scale(glm::mat4(1.0f), glm::vec3(r0));
+
+		glm::mat4 meio = balancoMat * glm::translate(glm::mat4(1.0f), glm::vec3(posChao.x, yMeio, posChao.z))
+			* glm::scale(glm::mat4(1.0f), glm::vec3(r1));
+
+		glm::mat4 cabeca = balancoMat * glm::translate(glm::mat4(1.0f), glm::vec3(posChao.x, yCabeca, posChao.z))
+			* glm::scale(glm::mat4(1.0f), glm::vec3(r2));
+
+		pShader->SetMat4("model", corpo);
+		pShader->SetVec3("objColor", 0.95f, 0.96f, 0.98f);
+		DrawSnowSphere();
+
+		pShader->SetMat4("model", meio);
+		pShader->SetVec3("objColor", 0.93f, 0.94f, 0.97f);
+		DrawSnowSphere();
+
+		pShader->SetMat4("model", cabeca);
+		pShader->SetVec3("objColor", 0.98f, 0.99f, 1.0f);
+		DrawSnowSphere();
+
+		// cartola = 2 cilindros
+		const float yTopoCabeca = (yCabeca + r2)*0.95;
+		const float abaAltura = 0.018f;
+		const float copoAltura = 0.085f;
+		const float yAba = yTopoCabeca + abaAltura * 0.5f;
+		const float yCopo = yTopoCabeca + abaAltura + copoAltura * 0.5f;
+
+		glm::mat4 chapeuAba = balancoMat * glm::translate(glm::mat4(1.0f), glm::vec3(posChao.x, yAba, posChao.z))
+			* glm::scale(glm::mat4(1.0f), glm::vec3(r2 * 1.65f, abaAltura, r2 * 1.65f));
+		glm::mat4 chapeuCopo = balancoMat * glm::translate(glm::mat4(1.0f), glm::vec3(posChao.x, yCopo, posChao.z))
+			* glm::scale(glm::mat4(1.0f), glm::vec3(r2 * 0.85f, copoAltura, r2 * 0.85f));
+
+		pShader->SetMat4("model", chapeuAba);
+		pShader->SetVec3("objColor", 0.1f, 0.1f, 0.12f);
+		DrawHatBrim();
+
+		pShader->SetMat4("model", chapeuCopo);
+		pShader->SetVec3("objColor", 0.07f, 0.07f, 0.09f);
+		DrawHatCrown();
+
+		// cenoura (nariz) — cone
+		const float narizRaio = r2 * 0.22f;
+		const float narizComprimento = r2 * 0.85f;
+		glm::mat4 virarNariz = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+		glm::mat4 cenoura = balancoMat * glm::translate(glm::mat4(1.0f), glm::vec3(posChao.x, yCabeca, posChao.z + r2))
+			* virarNariz * glm::scale(glm::mat4(1.0f), glm::vec3(narizRaio, narizComprimento, narizRaio));
+
+		pShader->SetMat4("model", cenoura);
+		pShader->SetVec3("objColor", 0.92f, 0.42f, 0.08f);
+		DrawCarrotNose();
+	}
+
 	glDisable(GL_DEPTH_TEST);
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	projection = glm::ortho(0.0f, static_cast<float>(SCR_WIDTH), 0.0f, static_cast<float>(SCR_HEIGHT));
@@ -216,7 +292,7 @@ void Scene4::DrawScene()
 	pShader->SetMat4("projection", projection);
 	pShader->SetVec3("textColor", 1.0f, 1.0f, 1.0f);
 
-	pText->RenderText("Scene 4 (base vazia) — teclas 0-4 trocam de cena", 5.0f, 120.0f, 0.35f);
+	pText->RenderText("Scene 4 — teclas 0-4 trocam de cena", 5.0f, 120.0f, 0.35f);
 	pText->RenderText(std::format("CamPosition\tx: {0:.2f} \t y: {1:.2f} \t z: {2:.2f}", pCamera->Position.x, pCamera->Position.y, pCamera->Position.z), 5.0f, 100.0f, 0.3f);
 	pText->RenderText(std::format("CamForward\tx: {0:.2f} \t y: {1:.2f} \t z: {2:.2f}", pCamera->Front.x, pCamera->Front.y, pCamera->Front.z), 5.0f, 80.0f, 0.3f);
 	pText->RenderText(std::format("FPS: {0:.0f}\tDeltatime: {1:.2f}ms\tTimer: {2:.2f}s", pTimer->GetFPS(), pTimer->GetDeltaTime(), pTimer->GetTime() / 1000), 5.0f, 10.0f, 0.3f);
@@ -253,6 +329,7 @@ void Scene4::ProcessSceneInput(GLFWwindow* window, float deltaTime)
 	float scrollOffset = input.GetScrollOffset();
 	if (scrollOffset != 0.0f)
 		pCamera->ProcessMouseScroll(scrollOffset);
+
 }
 
 void Scene4::CreateFloor()
@@ -315,4 +392,45 @@ void Scene4::DrawTreeTrunk()
 void Scene4::DrawTreeCone()
 {
 	treeCone.render();
+}
+
+void Scene4::InitSnowman()
+{
+	snowSphere.generateSphere(1.0f, 24, 16);
+	snowSphere.setupBuffers();
+
+	hatBrim.generateCylinder(1.0f, 1.0f, 24);
+	hatBrim.setupBuffers();
+	hatCrown.generateCylinder(1.0f, 1.0f, 24);
+	hatCrown.setupBuffers();
+	carrotNose.generateCone(1.0f, 1.0f, 16);
+	carrotNose.setupBuffers();
+}
+
+void Scene4::CleanupSnowman()
+{
+	snowSphere.cleanup();
+	hatBrim.cleanup();
+	hatCrown.cleanup();
+	carrotNose.cleanup();
+}
+
+void Scene4::DrawSnowSphere()
+{
+	snowSphere.render();
+}
+
+void Scene4::DrawHatBrim()
+{
+	hatBrim.render();
+}
+
+void Scene4::DrawHatCrown()
+{
+	hatCrown.render();
+}
+
+void Scene4::DrawCarrotNose()
+{
+	carrotNose.render();
 }
